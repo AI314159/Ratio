@@ -2,7 +2,7 @@
 Ratio is a fast, natively compiled, statically typed work-in-progress programming language. This repository contains the compiler for Ratio. The syntax is similar to Python, Rust, and TypeScript. Below is a simple example program.
 
 ```
-fn main:
+fn main():
     print("Hello world")
     var x: int = 10
     print(x)
