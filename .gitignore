@@ -1,0 +1,4 @@
+/target
+
+# I will always compile to `output` for simplicity.
+output
