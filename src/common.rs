@@ -20,11 +20,15 @@ pub enum Keyword {
     Var,
     Return,
     Int,
+    Bool,
+    True,
+    False,
 }
 
 #[derive(Debug, PartialEq)]
 pub enum Type {
     Int,
+    Bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -98,6 +102,7 @@ pub enum Expr {
     Variable(String),
     StringLiteral(String),
     IntegerLiteral(i64),
+    BooleanLiteral(bool),
 }
 
 #[derive(Debug)]

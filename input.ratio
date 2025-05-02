@@ -1,7 +1,9 @@
 fn main():
     print("Hello world")
     var x: int = 10
+    var y: bool = true
     print(x)
+    print(y)
     x = 20
     print("Changed x to 20")
     print(x)

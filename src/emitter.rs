@@ -30,6 +30,7 @@ impl CodeGenerator {
             self.output.push_str(def);
         }
         
+        // FIXME: These should only be generated if they are used.
         self.output.push_str("fmt_str: db \"%s\", 10, 0\n");
         self.output.push_str("fmt_int: db \"%d\", 10, 0\n");
         
@@ -89,7 +90,7 @@ impl CodeGenerator {
     fn generate_stmt(&mut self, stmt: &Stmt) {
         match stmt {
             // TODO: The type name should be used.
-            Stmt::VariableDecl { name, type_name: _, value } => {
+            Stmt::VariableDecl { name, type_name, value } => {
                 self.generate_expr(value);
                 self.output.push_str(&format!("mov [{}], rax\n", name));
             }
@@ -119,6 +120,9 @@ impl CodeGenerator {
                                     self.output.push_str("mov rdi, fmt_str\n");
                                 }
                                 _ => {
+                                    // This will also catch booleans, but it is okay,
+                                    // as they are internally represented as integers.
+                                    // TODO
                                     self.output.push_str("mov rdi, fmt_int\n");
                                 }
                             }
@@ -140,6 +144,10 @@ impl CodeGenerator {
             }
             Expr::IntegerLiteral(n) => {
                 self.output.push_str(&format!("mov rax, {}\n", n));
+            }
+            Expr::BooleanLiteral(b) => {
+                let number = if *b { 1 } else { 0 };
+                self.output.push_str(&format!("mov rax, {}\n", number));
             }
             Expr::Variable(name) => {
                 self.output.push_str(&format!("mov rax, [{}]\n", name));

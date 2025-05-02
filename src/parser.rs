@@ -41,7 +41,7 @@ impl Parser {
         match &self.current_token.0 {
             Token::Keyword(Keyword::Var) => self.parse_variable_decl(),
             _ => {
-                if (self.peek().0 == Token::Equals) {
+                if self.peek().0 == Token::Equals {
                     return self.parse_variable_assignment();
                 }
                 self.parse_expression_statement()
@@ -56,15 +56,23 @@ impl Parser {
         self.expect(Token::Colon)?;
         
         // TODO: more types
-        self.expect_keyword(Keyword::Int)?;
-        
+        let type_name = match self.current_token.0 {
+            Token::Keyword(Keyword::Int) => "int",
+            Token::Keyword(Keyword::Bool) => "bool",
+            _ => return Err(CompileError::new(
+                "Expected known type after variable declaration",
+                self.current_token.1.clone(),
+            )),
+        };
+        self.advance();
+
         self.expect(Token::Equals)?;
         let value = self.parse_expression()?;
         
         Ok(Stmt::VariableDecl { 
             name,
-            type_name: "int".to_string(),
-            value 
+            type_name: type_name.to_string(),
+            value
         })
     }
 
@@ -89,6 +97,14 @@ impl Parser {
                 }.to_string();
                 self.advance();
                 self.parse_call(callee)
+            }
+            Token::Keyword(Keyword::True) => {
+                self.advance();
+                Ok(Expr::BooleanLiteral(true))
+            }
+            Token::Keyword(Keyword::False) => {
+                self.advance();
+                Ok(Expr::BooleanLiteral(false))
             }
             Token::Identifier(name) => {
                 let name = name.clone();
