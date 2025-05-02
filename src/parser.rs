@@ -40,7 +40,12 @@ impl Parser {
     fn parse_statement(&mut self) -> Result<Stmt, CompileError> {
         match &self.current_token.0 {
             Token::Keyword(Keyword::Var) => self.parse_variable_decl(),
-            _ => self.parse_expression_statement(),
+            _ => {
+                if (self.peek().0 == Token::Equals) {
+                    return self.parse_variable_assignment();
+                }
+                self.parse_expression_statement()
+            },
         }
     }
 
@@ -61,6 +66,13 @@ impl Parser {
             type_name: "int".to_string(),
             value 
         })
+    }
+
+    fn parse_variable_assignment(&mut self) -> Result<Stmt, CompileError> {
+        let name = self.parse_identifier()?;
+        self.expect(Token::Equals)?;
+        let value = self.parse_expression()?;
+        Ok(Stmt::Assignment { name, value })
     }
 
     fn parse_expression_statement(&mut self) -> Result<Stmt, CompileError> {
@@ -185,5 +197,13 @@ impl Parser {
             return;
         }
         self.current_token = self.tokens[self.index].clone();
+    }
+
+    fn peek(&self) -> (Token, Position) {
+        if self.index + 1 < self.tokens.len() {
+            self.tokens[self.index + 1].clone()
+        } else {
+            (Token::EOF, Position::new(0, 0))
+        }
     }
 }

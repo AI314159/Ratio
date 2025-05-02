@@ -2,6 +2,7 @@ fn main():
     print("Hello world")
     var x: int = 10
     print(x)
+    x = 20
+    print("Changed x to 20")
+    print(x)
     print("This is a very simple program")
-    var y: int = 20
-    print(y)

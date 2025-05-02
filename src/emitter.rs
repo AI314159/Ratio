@@ -93,6 +93,10 @@ impl CodeGenerator {
                 self.generate_expr(value);
                 self.output.push_str(&format!("mov [{}], rax\n", name));
             }
+            Stmt::Assignment { name, value } => {
+                self.generate_expr(value);
+                self.output.push_str(&format!("mov [{}], rax\n", name));
+            }
             Stmt::ExprStmt(expr) => {
                 self.generate_expr(expr);
             }
