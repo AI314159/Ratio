@@ -149,6 +149,20 @@ impl CodeGenerator {
                 let number = if *b { 1 } else { 0 };
                 self.output.push_str(&format!("mov rax, {}\n", number));
             }
+            Expr::BinaryOperator {operator, left, right } => {
+                self.generate_expr(left);
+                self.output.push_str("push rax\n");
+                self.generate_expr(right);
+                self.output.push_str("pop rbx\n");
+                println!("Operator: {}", operator);
+                match operator.as_str() {
+                    "+" => self.output.push_str("add rax, rbx\n"),
+                    "-" => self.output.push_str("sub rax, rbx\n"),
+                    "*" => self.output.push_str("imul rax, rbx\n"),
+                    "/" => self.output.push_str("xor rdx, rdx\nidiv rbx\n"),
+                    _ => panic!("Unsupported operator: {}", operator),
+                }
+            }
             Expr::Variable(name) => {
                 self.output.push_str(&format!("mov rax, [{}]\n", name));
             }

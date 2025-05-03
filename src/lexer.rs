@@ -32,6 +32,10 @@ impl<'a> Lexer<'a> {
             ':' => self.consume_simple(Token::Colon),
             ',' => self.consume_simple(Token::Comma),
             '=' => self.consume_simple(Token::Equals),
+            '+' => self.consume_simple(Token::Plus),
+            '-' => self.consume_simple(Token::Minus),
+            '*' => self.consume_simple(Token::Asterisk),
+            '/' => self.consume_simple(Token::Slash),
             '"' => self.consume_string(),
             _ if current.is_alphabetic() => self.consume_word(),
             _ if current.is_digit(10) => self.consume_number(),  // Add this

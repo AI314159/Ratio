@@ -49,6 +49,10 @@ pub enum Token {
     Colon,
     Comma,
     Equals,
+    Plus,
+    Minus,
+    Asterisk,
+    Slash,
     StringLiteral(String),
     NumberLiteral(i64),
     Identifier(String),
@@ -67,6 +71,10 @@ impl Display for Token {
                 Token::Colon => ":".to_string(),
                 Token::Comma => ",".to_string(),
                 Token::Equals => "=".to_string(),
+                Token::Plus => "+".to_string(),
+                Token::Minus => "-".to_string(),
+                Token::Asterisk => "*".to_string(),
+                Token::Slash => "/".to_string(),
                 Token::StringLiteral(s) => format!("\"{}\"", s),
                 Token::NumberLiteral(n) => n.to_string(),
                 Token::Identifier(s) => s.clone(),
@@ -103,6 +111,11 @@ pub enum Expr {
     StringLiteral(String),
     IntegerLiteral(i64),
     BooleanLiteral(bool),
+    BinaryOperator {
+        operator: String,
+        left: Box<Expr>,
+        right: Box<Expr>,
+    },
 }
 
 #[derive(Debug)]

@@ -2,8 +2,10 @@ fn main():
     print("Hello world")
     var x: int = 10
     var y: bool = true
+    var z: int = 5 + 10
     print(x)
     print(y)
+    print(z)
     x = 20
     print("Changed x to 20")
     print(x)

@@ -113,8 +113,15 @@ impl Parser {
             }
             Token::NumberLiteral(n) => {
                 let value = *n;
-                self.advance();
-                Ok(Expr::IntegerLiteral(value))
+                match self.peek().0 {
+                    Token::Plus | Token::Minus | Token::Asterisk | Token::Slash => {
+                        return self.parse_binary_operator(self.peek().0.clone(), value);
+                    }
+                    _ => {
+                        self.advance();
+                        Ok(Expr::IntegerLiteral(value))
+                    }
+                }
             }
             Token::StringLiteral(s) => {
                 let s = s.clone();
@@ -213,6 +220,29 @@ impl Parser {
             return;
         }
         self.current_token = self.tokens[self.index].clone();
+    }
+
+    fn parse_binary_operator(&mut self, token: Token, lvalue: i64) -> Result<Expr, CompileError> {
+        // Note that this expects that the next token is a binary operator, and that the current
+        // token is a number literal.
+        self.advance();
+        self.expect(token.clone())?;
+        let rvalue = self.parse_expression()?;
+        Ok(Expr::BinaryOperator {
+            operator: self.get_operator(token),
+            left: Box::new(Expr::IntegerLiteral(lvalue)),
+            right: Box::new(rvalue),
+        })
+    }
+
+    fn get_operator(&self, token: Token) -> String {
+        match token {
+            Token::Plus => "+".to_string(),
+            Token::Minus => "-".to_string(),
+            Token::Asterisk => "*".to_string(),
+            Token::Slash => "/".to_string(),
+            _ => panic!("Unexpected token for binary operator: {:?}", token),
+        }
     }
 
     fn peek(&self) -> (Token, Position) {
