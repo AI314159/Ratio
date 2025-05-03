@@ -21,20 +21,43 @@ impl Parser {
         self.expect_keyword(Keyword::Fn)?;
         let name = self.parse_identifier()?;
 
-        // This code consumes everything between the parentheses. Currently, we discard it.
-        // However, we should be taking this info and using it to check function calls.
         let _ = self.parse_function_declaration_arguments()?;
         self.expect(Token::Colon).map_err(|e| CompileError::new(
             format!("Missing colon after function declaration: {}", e.message),
             e.position,
         ))?;
+
+        self.expect(Token::Newline)?;
+        self.expect(Token::Indent)?;
         
+
+        let body = self.parse_block()?;
+
+        Ok(Stmt::Function { name, body })
+    }
+
+    fn parse_block(&mut self) -> Result<Vec<Stmt>, CompileError> {
         let mut body = Vec::new();
-        while !matches!(self.current_token.0, Token::EOF) {
+
+        while matches!(self.current_token.0, Token::Newline) {
+            self.advance();
+        }
+
+        while !matches!(self.current_token.0, Token::Dedent | Token::EOF) {
+            while matches!(self.current_token.0, Token::Newline) {
+                self.advance();
+            }
+            if matches!(self.current_token.0, Token::Dedent | Token::EOF) {
+                break;
+            }
             body.push(self.parse_statement()?);
         }
-        
-        Ok(Stmt::Function { name, body })
+
+        if matches!(self.current_token.0, Token::Dedent) {
+            self.advance();
+        }
+
+        Ok(body)
     }
 
     fn parse_statement(&mut self) -> Result<Stmt, CompileError> {

@@ -5,6 +5,10 @@ pub struct Lexer<'a> {
     position: usize,
     current_pos: Position,
     start_pos: Position,
+    indent_stack: Vec<usize>,
+    pending_dedents: usize,
+    at_line_start: bool,
+
 }
 
 impl<'a> Lexer<'a> {
@@ -14,11 +18,67 @@ impl<'a> Lexer<'a> {
             position: 0,
             current_pos: Position::new(1, 1),
             start_pos: Position::new(1, 1),
+            indent_stack: vec![0],
+            pending_dedents: 0,
+            at_line_start: true,
         }
     }
 
     pub fn next_token(&mut self) -> (Token, Position) {
-        self.skip_whitespace();
+        if self.pending_dedents > 0 {
+            self.pending_dedents -= 1;
+            return (Token::Dedent, self.start_pos.clone());
+        }
+
+        if self.position >= self.input.len() {
+            if self.indent_stack.len() > 1 {
+                self.indent_stack.pop();
+                return (Token::Dedent, self.start_pos.clone());
+            }
+            return (Token::EOF, self.start_pos.clone());
+        }
+        // Handle start of line: measure indentation
+        if self.at_line_start {
+            let indent = self.consume_indent();
+            let last_indent = *self.indent_stack.last().unwrap();
+            if indent > last_indent {
+                self.indent_stack.push(indent);
+                self.at_line_start = false;
+                return (Token::Indent, self.start_pos.clone());
+            } else if indent < last_indent {
+                self.pending_dedents = 0;
+                while indent < *self.indent_stack.last().unwrap() {
+                    self.indent_stack.pop();
+                    self.pending_dedents += 1;
+                }
+                if indent != *self.indent_stack.last().unwrap() {
+                    panic!("Inconsistent indentation at line {}", self.current_pos.line);
+                }
+                if self.pending_dedents > 0 {
+                    self.pending_dedents -= 1;
+                    return (Token::Dedent, self.start_pos.clone());
+                }
+            }
+            self.at_line_start = false;
+        }
+
+        self.start_pos = self.current_pos.clone();
+
+        let current = self.current_char();
+
+        // Handle newline
+        if current == '\n' {
+            self.advance();
+            self.at_line_start = true;
+            return (Token::Newline, self.start_pos.clone());
+        }
+
+        // Skip whitespace within line (not at line start)
+        if current == ' ' || current == '\t' || current == '\r' {
+            self.advance();
+            return self.next_token();
+        }
+
         self.start_pos = self.current_pos.clone();
 
         if self.position >= self.input.len() {
@@ -43,6 +103,24 @@ impl<'a> Lexer<'a> {
         };
 
         (token, self.start_pos)
+    }
+
+    fn consume_indent(&mut self) -> usize {
+        let mut count = 0;
+        while self.position < self.input.len() {
+            match self.current_char() {
+                ' ' => {
+                    count += 1;
+                    self.advance();
+                }
+                '\t' => {
+                    count += 4; // or whatever your tab width is
+                    self.advance();
+                }
+                _ => break,
+            }
+        }
+        count
     }
 
     fn consume_number(&mut self) -> Token {

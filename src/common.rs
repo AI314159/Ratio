@@ -56,6 +56,9 @@ pub enum Token {
     StringLiteral(String),
     NumberLiteral(i64),
     Identifier(String),
+    Newline,
+    Dedent,
+    Indent,
     EOF,
 }
 impl Display for Token {
@@ -78,6 +81,9 @@ impl Display for Token {
                 Token::StringLiteral(s) => format!("\"{}\"", s),
                 Token::NumberLiteral(n) => n.to_string(),
                 Token::Identifier(s) => s.clone(),
+                Token::Newline => "\\n".to_string(),
+                Token::Dedent => "DEDENT".to_string(),
+                Token::Indent => "INDENT".to_string(),
                 Token::EOF => "EOF".to_string(),
             }
         )
