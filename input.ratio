@@ -9,4 +9,7 @@ fn main():
     x = 20
     print("Changed x to 20")
     print(x)
+    if 20 < 25:
+        print("20 is less than 25")
+        print("20 still is less than 25")
     print("This is a very simple program")

@@ -23,6 +23,9 @@ pub enum Keyword {
     Bool,
     True,
     False,
+
+    If,
+    Else,
 }
 
 #[derive(Debug, PartialEq)]
@@ -53,6 +56,12 @@ pub enum Token {
     Minus,
     Asterisk,
     Slash,
+    Equality,
+    NotEqual,
+    LessThan,
+    LessThanOrEqual,
+    GreaterThan,
+    GreaterThanOrEqual,
     StringLiteral(String),
     NumberLiteral(i64),
     Identifier(String),
@@ -67,6 +76,7 @@ impl Display for Token {
             f,
             "{:?}",
             match self {
+                // TODO: Find a better way to do this
                 Token::Keyword(k) => format!("{:?}", k),
                 Token::Builtin(b) => format!("{:?}", b),
                 Token::LeftParen => "(".to_string(),
@@ -78,6 +88,12 @@ impl Display for Token {
                 Token::Minus => "-".to_string(),
                 Token::Asterisk => "*".to_string(),
                 Token::Slash => "/".to_string(),
+                Token::Equality => "==".to_string(),
+                Token::LessThan => "<".to_string(),
+                Token::LessThanOrEqual => "<=".to_string(),
+                Token::GreaterThan => ">".to_string(),
+                Token::GreaterThanOrEqual => ">=".to_string(),
+                Token::NotEqual => "!=".to_string(),
                 Token::StringLiteral(s) => format!("\"{}\"", s),
                 Token::NumberLiteral(n) => n.to_string(),
                 Token::Identifier(s) => s.clone(),
@@ -104,6 +120,12 @@ pub enum Stmt {
         name: String,
         value: Expr,
     },
+
+    IfStatement {
+        condition: Expr,
+        body: Vec<Stmt>,
+        else_body: Option<Vec<Stmt>>,
+    },
     ExprStmt(Expr),
 }
 
@@ -121,6 +143,11 @@ pub enum Expr {
         operator: String,
         left: Box<Expr>,
         right: Box<Expr>,
+    },
+    BooleanComparison {
+        lvalue: Box<Expr>,
+        operator: Token,
+        rvalue: Box<Expr>,
     },
 }
 

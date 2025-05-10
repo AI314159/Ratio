@@ -63,6 +63,7 @@ impl Parser {
     fn parse_statement(&mut self) -> Result<Stmt, CompileError> {
         match &self.current_token.0 {
             Token::Keyword(Keyword::Var) => self.parse_variable_decl(),
+            Token::Keyword(Keyword::If) => self.parse_if_statement(),
             _ => {
                 if self.peek().0 == Token::Equals {
                     return self.parse_variable_assignment();
@@ -136,9 +137,18 @@ impl Parser {
             }
             Token::NumberLiteral(n) => {
                 let value = *n;
+                // TODO: Comparisons should work with variables
                 match self.peek().0 {
                     Token::Plus | Token::Minus | Token::Asterisk | Token::Slash => {
                         return self.parse_binary_operator(self.peek().0.clone(), value);
+                    }
+                    Token::Equality |
+                    Token::GreaterThan |
+                    Token::LessThan |
+                    Token::GreaterThanOrEqual |
+                    Token::LessThanOrEqual |
+                    Token::NotEqual => {
+                        return self.parse_boolean_expression(self.peek().0.clone(), value);
                     }
                     _ => {
                         self.advance();
@@ -171,6 +181,24 @@ impl Parser {
         
         self.expect(Token::RightParen)?;
         Ok(Expr::Call { callee, args })
+    }
+
+    fn parse_if_statement(&mut self) -> Result<Stmt, CompileError> {
+        self.expect_keyword(Keyword::If)?;
+        let condition = self.parse_expression()?;
+        self.expect(Token::Colon)?;
+        self.expect(Token::Newline)?;
+        self.expect(Token::Indent)?;
+
+        let body = self.parse_block()?;
+
+        if matches!(self.current_token.0, Token::Keyword(Keyword::Else)) {
+            self.advance();
+            let else_body = self.parse_block()?;
+            return Ok(Stmt::IfStatement { condition: condition, body: body, else_body: Some(else_body) });
+        }
+
+        Ok(Stmt::IfStatement { condition, body, else_body: None })
     }
 
     fn expect_keyword(&mut self, keyword: Keyword) -> Result<(), CompileError> {
@@ -255,6 +283,17 @@ impl Parser {
             operator: self.get_operator(token),
             left: Box::new(Expr::IntegerLiteral(lvalue)),
             right: Box::new(rvalue),
+        })
+    }
+
+    fn parse_boolean_expression(&mut self, token: Token, lvalue: i64) -> Result<Expr, CompileError> {
+        self.advance();
+        self.expect(token.clone())?;
+        let rvalue = self.parse_expression()?;
+        Ok(Expr::BooleanComparison {
+            lvalue: Box::new(Expr::IntegerLiteral(lvalue)),
+            operator: token,
+            rvalue: Box::new(rvalue),
         })
     }
 

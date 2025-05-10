@@ -91,14 +91,52 @@ impl<'a> Lexer<'a> {
             ')' => self.consume_simple(Token::RightParen),
             ':' => self.consume_simple(Token::Colon),
             ',' => self.consume_simple(Token::Comma),
-            '=' => self.consume_simple(Token::Equals),
+            '=' => {
+                if self.peek() == '=' {
+                    // The first advance is to consume this equals.
+                    // The second is to consume the 'peeked' equals.
+                    self.advance();
+                    self.advance();
+                    Token::Equality
+                } else {
+                    self.consume_simple(Token::Equals)
+                }
+            },
+            '>' => {
+                if self.peek() == '=' {
+                    self.advance();
+                    self.advance();
+                    Token::GreaterThanOrEqual
+                } else {
+                    self.consume_simple(Token::GreaterThan)
+                }
+            },
+            '<' => {
+                if self.peek() == '=' {
+                    self.advance();
+                    self.advance();
+                    Token::LessThanOrEqual
+                } else {
+                    self.consume_simple(Token::LessThan)
+                }
+            },
+            '!' => {
+                if self.peek() == '=' {
+                    self.advance();
+                    self.advance();
+                    Token::NotEqual
+                } else {
+                    // TODO
+                    panic!("Unary operators are not yet supported");
+                }
+            }
             '+' => self.consume_simple(Token::Plus),
             '-' => self.consume_simple(Token::Minus),
             '*' => self.consume_simple(Token::Asterisk),
             '/' => self.consume_simple(Token::Slash),
             '"' => self.consume_string(),
             _ if current.is_alphabetic() => self.consume_word(),
-            _ if current.is_digit(10) => self.consume_number(),  // Add this
+            _ if current.is_digit(10) => self.consume_number(),
             _ => panic!("Unexpected character at {}:{}", self.current_pos.line, self.current_pos.column),
         };
 
@@ -150,6 +188,7 @@ impl<'a> Lexer<'a> {
             "return" => Token::Keyword(Keyword::Return),
             "print" => Token::Builtin(Builtin::Print),
             "input" => Token::Builtin(Builtin::Input),
+            "if" => Token::Keyword(Keyword::If),
             _ => Token::Identifier(word.to_string()),
         }
     }
@@ -201,5 +240,14 @@ impl<'a> Lexer<'a> {
     fn consume_simple(&mut self, token: Token) -> Token {
         self.advance();
         token
+    }
+
+    fn peek(&self) -> char {
+        if self.position + 1 < self.input.len() {
+            self.input.chars().nth(self.position + 1).unwrap()
+        } else {
+            // TODO: better handling
+            '\0'
+        }
     }
 }

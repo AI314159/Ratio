@@ -1,4 +1,4 @@
-use crate::common::{Stmt, Expr};
+use crate::common::{Stmt, Expr, Token};
 
 pub struct CodeGenerator {
     pub output: String,
@@ -69,6 +69,17 @@ impl CodeGenerator {
                 self.variables.push(name.clone());
             }
             Stmt::ExprStmt(expr) => self.visit_expr(expr),
+            Stmt::IfStatement { condition, body, else_body } => {
+                self.visit_expr(condition);
+                for stmt in body {
+                    self.visit_stmt(stmt);
+                }
+                if let Some(else_body) = else_body {
+                    for stmt in else_body {
+                        self.visit_stmt(stmt);
+                    }
+                }
+            }
             _ => {}
         }
     }
@@ -100,6 +111,25 @@ impl CodeGenerator {
             }
             Stmt::ExprStmt(expr) => {
                 self.generate_expr(expr);
+            }
+            Stmt::IfStatement { condition, body, else_body } => {
+                // TODO: Better way of choosing names
+                let if_label = format!("if_{}", self.variables.len());
+                let end_label = format!("end_{}", self.variables.len());
+                self.generate_expr(condition);
+                self.output.push_str("cmp rax, 0\n");
+                self.output.push_str(&format!("je {}\n", if_label));
+                for stmt in body {
+                    self.generate_stmt(stmt);
+                }
+                self.output.push_str(&format!("jmp {}\n", end_label));
+                self.output.push_str(&format!("{}:\n", if_label));
+                if let Some(else_body) = else_body {
+                    for stmt in else_body {
+                        self.generate_stmt(stmt);
+                    }
+                }
+                self.output.push_str(&format!("{}:\n", end_label));
             }
             _ => {}
         }
@@ -154,7 +184,7 @@ impl CodeGenerator {
                 self.output.push_str("push rax\n");
                 self.generate_expr(right);
                 self.output.push_str("pop rbx\n");
-                println!("Operator: {}", operator);
+
                 match operator.as_str() {
                     "+" => self.output.push_str("add rax, rbx\n"),
                     "-" => self.output.push_str("sub rax, rbx\n"),
@@ -165,6 +195,23 @@ impl CodeGenerator {
             }
             Expr::Variable(name) => {
                 self.output.push_str(&format!("mov rax, [{}]\n", name));
+            }
+            Expr::BooleanComparison { lvalue, operator, rvalue } => {
+                self.generate_expr(lvalue);
+                self.output.push_str("push rax\n");
+                self.generate_expr(rvalue);
+                self.output.push_str("pop rbx\n");
+                self.output.push_str("cmp rbx, rax\n");
+                match operator {
+                    Token::Equality => self.output.push_str("sete al\n"),
+                    Token::GreaterThan => self.output.push_str("setg al\n"),
+                    Token::LessThan => self.output.push_str("setl al\n"),
+                    Token::GreaterThanOrEqual => self.output.push_str("setge al\n"),
+                    Token::LessThanOrEqual => self.output.push_str("setle al\n"),
+                    Token::NotEqual => self.output.push_str("setne al\n"),
+                    _ => panic!("Unsupported comparison operator"),
+                }
+                self.output.push_str("movzx rax, al\n");
             }
         }
     }
@@ -186,6 +233,6 @@ impl CodeGenerator {
         self.strings.iter()
             .find(|(label, _)| label == &search)
             .map(|(label, _)| label.as_str())
-            .expect("String not found in collection")
+            .expect(&format!("String '{}' not found in collection", search))
     }
 }
