@@ -2,11 +2,8 @@ use std::fs::File;
 use std::io::Read;
 
 
-pub fn read_file(filepath: &str) -> std::io::Result<String> {
-    let mut file = File::open(filepath)?;
-    let mut contents = String::new();
-    file.read_to_string(&mut contents)?;
-    Ok(contents)
+pub fn read_file(filepath: &std::path::PathBuf) -> std::io::Result<String> {
+    std::fs::read_to_string(filepath)
 }
 
 pub fn write_file(filepath: &str, contents: &str) -> std::io::Result<()> {
