@@ -1,15 +1,15 @@
-fn main():
-    print("Hello world")
-    var x: int = 10
-    var y: bool = true
-    var z: int = 5 + 10
-    print(x)
-    print(y)
-    print(z)
-    x = 20
-    print("Changed x to 20")
-    print(x)
-    if 20 < 25:
-        print("20 is less than 25")
-        print("20 still is less than 25")
-    print("This is a very simple program")
+fn main() {
+    var i: int = 5;
+    if i == 5 {
+        print("i is 5!!");
+    } else if i == 10 {
+        print("i is 10!!");
+    } else {
+        print("i is neither 5 nor 10!!");
+    }
+
+    while i < 10 {
+        print(i);
+        i = i + 1;
+    }
+}

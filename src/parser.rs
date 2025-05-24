@@ -20,43 +20,22 @@ impl Parser {
     fn parse_function(&mut self) -> Result<Stmt, CompileError> {
         self.expect_keyword(Keyword::Fn)?;
         let name = self.parse_identifier()?;
-
         let _ = self.parse_function_declaration_arguments()?;
-        self.expect(Token::Colon).map_err(|e| CompileError::new(
-            format!("Missing colon after function declaration: {}", e.message),
-            e.position,
-        ))?;
-
-        self.expect(Token::Newline)?;
-        self.expect(Token::Indent)?;
-        
-
         let body = self.parse_block()?;
-
         Ok(Stmt::Function { name, body })
     }
 
     fn parse_block(&mut self) -> Result<Vec<Stmt>, CompileError> {
         let mut body = Vec::new();
-
-        while matches!(self.current_token.0, Token::Newline) {
-            self.advance();
-        }
-
-        while !matches!(self.current_token.0, Token::Dedent | Token::EOF) {
-            while matches!(self.current_token.0, Token::Newline) {
+        self.expect(Token::LeftBrace)?;
+        while !matches!(self.current_token.0, Token::RightBrace | Token::EOF) {
+            let stmt = self.parse_statement()?;
+            if matches!(self.current_token.0, Token::Semicolon) {
                 self.advance();
             }
-            if matches!(self.current_token.0, Token::Dedent | Token::EOF) {
-                break;
-            }
-            body.push(self.parse_statement()?);
+            body.push(stmt);
         }
-
-        if matches!(self.current_token.0, Token::Dedent) {
-            self.advance();
-        }
-
+        self.expect(Token::RightBrace)?;
         Ok(body)
     }
 
@@ -64,6 +43,19 @@ impl Parser {
         match &self.current_token.0 {
             Token::Keyword(Keyword::Var) => self.parse_variable_decl(),
             Token::Keyword(Keyword::If) => self.parse_if_statement(),
+            Token::Keyword(Keyword::While) => self.parse_while_statement(),
+            Token::LeftBrace => {
+                // Standalone blocks; is it supported in the AST?
+                self.parse_block()?;
+                // THIS SHOULD NOT BE RETURNED IF STANDALONE BLOCKS ARE TO WORK
+                Ok(Stmt::ExprStmt(Expr::BooleanLiteral(true)))
+            }
+            Token::RightBrace | Token::EOF => {
+                Err(CompileError::new(
+                    format!("Unexpected block delimiter or EOF in statement context: {:?}", self.current_token.0),
+                    self.current_token.1.clone(),
+                ))
+            }
             _ => {
                 if self.peek().0 == Token::Equals {
                     return self.parse_variable_assignment();
@@ -73,13 +65,19 @@ impl Parser {
         }
     }
 
+    fn parse_while_statement(&mut self) -> Result<Stmt, CompileError> {
+        self.expect_keyword(Keyword::While)?;
+        let condition = self.parse_expression_until(&[
+            Token::LeftBrace, Token::RightBrace, Token::Semicolon, Token::Comma, Token::RightParen, Token::EOF
+        ])?;
+        let body = self.parse_block()?;
+        Ok(Stmt::While { condition, body })
+    }
+
     fn parse_variable_decl(&mut self) -> Result<Stmt, CompileError> {
         self.expect_keyword(Keyword::Var)?;
         let name = self.parse_identifier()?;
-        
         self.expect(Token::Colon)?;
-        
-        // TODO: more types
         let type_name = match self.current_token.0 {
             Token::Keyword(Keyword::Int) => "int",
             Token::Keyword(Keyword::Bool) => "bool",
@@ -89,10 +87,8 @@ impl Parser {
             )),
         };
         self.advance();
-
         self.expect(Token::Equals)?;
         let value = self.parse_expression()?;
-        
         Ok(Stmt::VariableDecl { 
             name,
             type_name: type_name.to_string(),
@@ -113,59 +109,93 @@ impl Parser {
     }
 
     fn parse_expression(&mut self) -> Result<Expr, CompileError> {
-        match &self.current_token.0 {
+        self.parse_expression_until(&[Token::LeftBrace, Token::RightBrace, Token::Semicolon, Token::Comma, Token::RightParen, Token::EOF])
+    }
+
+    fn parse_expression_until(&mut self, stop_tokens: &[Token]) -> Result<Expr, CompileError> {
+        let mut left = match &self.current_token.0 {
             Token::Builtin(builtin) => {
                 let callee = match builtin {
                     Builtin::Print => "print",
                     Builtin::Input => "input",
                 }.to_string();
                 self.advance();
-                self.parse_call(callee)
+                return self.parse_call(callee);
             }
             Token::Keyword(Keyword::True) => {
                 self.advance();
-                Ok(Expr::BooleanLiteral(true))
+                Expr::BooleanLiteral(true)
             }
             Token::Keyword(Keyword::False) => {
                 self.advance();
-                Ok(Expr::BooleanLiteral(false))
+                Expr::BooleanLiteral(false)
             }
             Token::Identifier(name) => {
                 let name = name.clone();
                 self.advance();
-                Ok(Expr::Variable(name))
+                Expr::Variable(name)
             }
             Token::NumberLiteral(n) => {
                 let value = *n;
-                // TODO: Comparisons should work with variables
-                match self.peek().0 {
-                    Token::Plus | Token::Minus | Token::Asterisk | Token::Slash => {
-                        return self.parse_binary_operator(self.peek().0.clone(), value);
-                    }
-                    Token::Equality |
-                    Token::GreaterThan |
-                    Token::LessThan |
-                    Token::GreaterThanOrEqual |
-                    Token::LessThanOrEqual |
-                    Token::NotEqual => {
-                        return self.parse_boolean_expression(self.peek().0.clone(), value);
-                    }
-                    _ => {
-                        self.advance();
-                        Ok(Expr::IntegerLiteral(value))
-                    }
-                }
+                self.advance();
+                Expr::IntegerLiteral(value)
             }
             Token::StringLiteral(s) => {
                 let s = s.clone();
                 self.advance();
-                Ok(Expr::StringLiteral(s))
+                Expr::StringLiteral(s)
             }
-            _ => Err(CompileError::new(
-                format!("Unexpected token in expression: {:?}", self.current_token.0),
-                self.current_token.1.clone(),
-            )),
+            _ => {
+                eprintln!("DEBUG: Unexpected token in expression: {:?} at {:?}", self.current_token.0, self.current_token.1);
+                return Err(CompileError::new(
+                    format!("Unexpected token in expression: {:?}", self.current_token.0),
+                    self.current_token.1.clone(),
+                ));
+            },
+        };
+        loop {
+            match &self.current_token.0 {
+                Token::LeftBrace | Token::RightBrace | Token::Semicolon | Token::Comma | Token::RightParen | Token::EOF => {
+                    break;
+                }
+                Token::Plus | Token::Minus | Token::Asterisk | Token::Slash => {
+                    let op = self.current_token.0.clone();
+                    self.advance();
+                    if stop_tokens.iter().any(|stop| self.current_token.0 == *stop) {
+                        eprintln!("DEBUG: Operator {:?} followed by stop token {:?} at {:?}", op, self.current_token.0, self.current_token.1);
+                        return Err(CompileError::new(
+                            format!("Expected expression after operator {:?}, found block/statement delimiter", op),
+                            self.current_token.1.clone(),
+                        ));
+                    }
+                    let right = self.parse_expression_until(stop_tokens)?;
+                    left = Expr::BinaryOperator {
+                        operator: self.get_operator(op),
+                        left: Box::new(left),
+                        right: Box::new(right),
+                    };
+                }
+                Token::Equality | Token::GreaterThan | Token::LessThan | Token::GreaterThanOrEqual | Token::LessThanOrEqual | Token::NotEqual => {
+                    let op = self.current_token.0.clone();
+                    self.advance();
+                    if stop_tokens.iter().any(|stop| self.current_token.0 == *stop) {
+                        eprintln!("DEBUG: Comparison operator {:?} followed by stop token {:?} at {:?}", op, self.current_token.0, self.current_token.1);
+                        return Err(CompileError::new(
+                            format!("Expected expression after operator {:?}, found block/statement delimiter", op),
+                            self.current_token.1.clone(),
+                        ));
+                    }
+                    let right = self.parse_expression_until(stop_tokens)?;
+                    left = Expr::BooleanComparison {
+                        lvalue: Box::new(left),
+                        operator: op,
+                        rvalue: Box::new(right),
+                    };
+                }
+                _ => break,
+            }
         }
+        Ok(left)
     }
 
     fn parse_call(&mut self, callee: String) -> Result<Expr, CompileError> {
@@ -185,20 +215,28 @@ impl Parser {
 
     fn parse_if_statement(&mut self) -> Result<Stmt, CompileError> {
         self.expect_keyword(Keyword::If)?;
-        let condition = self.parse_expression()?;
-        self.expect(Token::Colon)?;
-        self.expect(Token::Newline)?;
-        self.expect(Token::Indent)?;
-
+        let condition = self.parse_expression_until(&[
+            Token::LeftBrace, Token::RightBrace, Token::Semicolon, Token::Comma, Token::RightParen, Token::EOF
+        ])?;
         let body = self.parse_block()?;
-
+        let mut else_body = None;
         if matches!(self.current_token.0, Token::Keyword(Keyword::Else)) {
             self.advance();
-            let else_body = self.parse_block()?;
-            return Ok(Stmt::IfStatement { condition: condition, body: body, else_body: Some(else_body) });
+            if matches!(self.current_token.0, Token::Keyword(Keyword::If)) {
+                // Recursively parse chained else if
+                let else_if_stmt = self.parse_if_statement()?;
+                else_body = Some(vec![else_if_stmt]);
+            } else if matches!(self.current_token.0, Token::LeftBrace) {
+                // Only parse a block after else, not an expression
+                else_body = Some(self.parse_block()?);
+            } else {
+                return Err(CompileError::new(
+                    "Expected '{' after 'else'",
+                    self.current_token.1.clone(),
+                ));
+            }
         }
-
-        Ok(Stmt::IfStatement { condition, body, else_body: None })
+        Ok(Stmt::IfStatement { condition, body, else_body })
     }
 
     fn expect_keyword(&mut self, keyword: Keyword) -> Result<(), CompileError> {

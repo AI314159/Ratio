@@ -1,16 +1,17 @@
-mod emitter;
 mod lexer;
 mod common;
 mod parser;
 mod file_io;
+mod llvm_codegen;
 
 use common::{Position, Token};
 use lexer::Lexer;
-use emitter::CodeGenerator;
+// use emitter::CodeGenerator;
 
 use std::process;
-
 use clap::Parser;
+use inkwell::context::Context;
+use std::fs;
 
 
 #[derive(Parser)]
@@ -46,17 +47,30 @@ fn main() {
         }
     };
 
-    let mut generator = CodeGenerator::new();
-    generator.generate(&ast);
-    
-    file_io::write_file("/tmp/output.asm", &generator.output).expect("Failed to write to file");
+    let context = Context::create();
+    let module = context.create_module("main");
+    let builder = context.create_builder();
+    llvm_codegen::generate_module(&context, &module, &builder, &ast);
 
-    process::Command::new("nasm")
-        .args(&["-f", "elf64", "/tmp/output.asm", "-o", "/tmp/output.o"])
+    let llvm_ir = module.print_to_string().to_string();
+    let ir_path = "/tmp/output.ll";
+    fs::write(ir_path, &llvm_ir).expect("Failed to write LLVM IR");
+
+    let llc_status = process::Command::new("llc")
+        .args(["-filetype=obj", ir_path, "-o", "/tmp/output.o"])
         .status()
-        .expect("Failed to execute nasm");
-    process::Command::new("gcc")
-        .args(&["-static", "/tmp/output.o", "-o", &args.output])
+        .expect("Failed to execute llc");
+    if !llc_status.success() {
+        eprintln!("llc failed");
+        std::process::exit(1);
+    }
+
+    let gcc_status = process::Command::new("gcc")
+        .args(["-static", "/tmp/output.o", "-o", &args.output])
         .status()
         .expect("Failed to execute gcc");
+    if !gcc_status.success() {
+        eprintln!("gcc failed");
+        std::process::exit(1);
+    }
 }

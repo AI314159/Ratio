@@ -26,6 +26,7 @@ pub enum Keyword {
 
     If,
     Else,
+    While,
 }
 
 #[derive(Debug, PartialEq)]
@@ -65,10 +66,10 @@ pub enum Token {
     StringLiteral(String),
     NumberLiteral(i64),
     Identifier(String),
-    Newline,
-    Dedent,
-    Indent,
     EOF,
+    LeftBrace,
+    RightBrace,
+    Semicolon,
 }
 impl Display for Token {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
@@ -97,10 +98,10 @@ impl Display for Token {
                 Token::StringLiteral(s) => format!("\"{}\"", s),
                 Token::NumberLiteral(n) => n.to_string(),
                 Token::Identifier(s) => s.clone(),
-                Token::Newline => "\\n".to_string(),
-                Token::Dedent => "DEDENT".to_string(),
-                Token::Indent => "INDENT".to_string(),
                 Token::EOF => "EOF".to_string(),
+                Token::LeftBrace => "{".to_string(),
+                Token::RightBrace => "}".to_string(),
+                Token::Semicolon => ";".to_string(),
             }
         )
     }
@@ -125,6 +126,10 @@ pub enum Stmt {
         condition: Expr,
         body: Vec<Stmt>,
         else_body: Option<Vec<Stmt>>,
+    },
+    While {
+        condition: Expr,
+        body: Vec<Stmt>,
     },
     ExprStmt(Expr),
 }
