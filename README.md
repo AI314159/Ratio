@@ -10,7 +10,7 @@ fn main() {
 ```
 
 ## Building and running
-Simply run `cargo run input.ratio -o output` to build Ratio and compile the code in `input.ratio` into the executable file `output`. Note that you will need GCC (we use it to link) and `llc` (The LLVM static compiler) for this to work, as these are called internally by the Ratio compiler.
+Simply run `cargo run input.ratio -o output` to build Ratio and compile the code in `input.ratio` into the executable file `output`. Note that you will need GCC (we use it to link) for this to work, as it is called internally by the Ratio compiler.
 
 ## A note on the name
 Ratio is probably going to be a temporary name, just because I couldn't think of anything else.
