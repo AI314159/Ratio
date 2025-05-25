@@ -17,6 +17,7 @@ impl Position {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Keyword {
     Fn,
+    Extern,
     Var,
     Return,
     Int,
@@ -107,11 +108,28 @@ impl Display for Token {
     }
 }
 #[derive(Debug)]
+pub struct Program {
+    pub functions: Vec<Stmt>,
+    pub externs: Vec<ExternFunction>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ExternFunction {
+    pub name: String,
+    pub args: Vec<(String, String)>, // (name, type)
+    pub return_type: String,
+}
+
+#[derive(Debug)]
 pub enum Stmt {
     Function {
         name: String,
+        args: Vec<(String, String)>,
         body: Vec<Stmt>,
+        return_expr: Option<Expr>,
     },
+    Return(Expr),
+    ExternFunction(ExternFunction),
     VariableDecl {
         name: String,
         type_name: String,

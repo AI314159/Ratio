@@ -1,3 +1,5 @@
+extern fn exit(code: int);
+
 fn main() {
     var i: int = 5;
     if i == 5 {
@@ -12,4 +14,11 @@ fn main() {
         print(i);
         i = i + 1;
     }
+    my_function();
+    print("If everything has gone correctly, it should exit with code 4!");
+    exit(2 + 2);
+}
+
+fn my_function() {
+    print("Hello from another function!");
 }

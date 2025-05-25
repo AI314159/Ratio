@@ -37,8 +37,8 @@ fn main() {
         tokens.push((token, pos));
     }
     let mut parser = parser::Parser::new(tokens);
-    let ast = match parser.parse() {
-        Ok(ast) => ast,
+    let program = match parser.parse() {
+        Ok(program) => program,
         Err(e) => {
             eprintln!("E: {}", e);
             std::process::exit(1);
@@ -48,7 +48,7 @@ fn main() {
     let context = Context::create();
     let module = context.create_module("main");
     let builder = context.create_builder();
-    llvm_codegen::generate_module(&context, &module, &builder, &ast);
+    llvm_codegen::generate_module(&context, &module, &builder, &program);
 
     inkwell::targets::Target::initialize_all(&inkwell::targets::InitializationConfig::default());
     let target_triple = inkwell::targets::TargetMachine::get_default_triple();

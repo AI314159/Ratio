@@ -1,10 +1,9 @@
-use crate::common::{CompileError, Position, Token, Keyword, Builtin, Stmt, Expr};
+use crate::common::{CompileError, Position, Token, Keyword, Builtin, Stmt, Expr, Program, ExternFunction};
 
 pub struct Parser {
     tokens: Vec<(Token, Position)>,
     current_token: (Token, Position),
     index: usize,
-
 }
 
 impl Parser {
@@ -13,16 +12,117 @@ impl Parser {
         Self { tokens, current_token, index: 0 }
     }
 
-    pub fn parse(&mut self) -> Result<Stmt, CompileError> {
-        self.parse_function()
+    pub fn parse(&mut self) -> Result<Program, CompileError> {
+        let mut functions = Vec::new();
+        let mut externs = Vec::new();
+        while self.current_token.0 != Token::EOF {
+            match &self.current_token.0 {
+                Token::Keyword(Keyword::Extern) => {
+                    externs.push(self.parse_extern_function()?);
+                }
+                Token::Keyword(Keyword::Fn) => {
+                    functions.push(self.parse_function()?);
+                }
+                Token::EOF => break,
+                _ => {
+                    return Err(CompileError::new(
+                        format!("Unexpected token at top level: {:?}", self.current_token.0),
+                        self.current_token.1.clone(),
+                    ));
+                }
+            }
+        }
+        Ok(Program { functions, externs })
+    }
+
+    fn parse_extern_function(&mut self) -> Result<ExternFunction, CompileError> {
+        self.expect_keyword(Keyword::Extern)?;
+        self.expect_keyword(Keyword::Fn)?;
+        let name = self.parse_identifier()?;
+        let args = self.parse_extern_function_args()?;
+        let return_type = if let Token::Identifier(ref t) = self.current_token.0 {
+            let t = t.clone();
+            self.advance();
+            t
+        } else if matches!(self.current_token.0, Token::Semicolon) {
+            // No return type specified, treat as void
+            String::new()
+        } else {
+            return Err(CompileError::new("Expected return type after extern fn args or ';'", self.current_token.1.clone()));
+        };
+        self.expect(Token::Semicolon)?;
+        Ok(ExternFunction { name, args, return_type })
+    }
+
+    fn parse_extern_function_args(&mut self) -> Result<Vec<(String, String)>, CompileError> {
+        self.expect(Token::LeftParen)?;
+        let mut args = Vec::new();
+        while !matches!(self.current_token.0, Token::RightParen) {
+            let name = self.parse_identifier()?;
+            self.expect(Token::Colon)?;
+            let type_name = if let Token::Keyword(kw) = &self.current_token.0 {
+                match kw {
+                    Keyword::Int => "int",
+                    Keyword::Bool => "bool",
+                    _ => return Err(CompileError::new("Unknown type in extern fn arg", self.current_token.1.clone())),
+                }
+            } else {
+                return Err(CompileError::new("Expected type in extern fn arg", self.current_token.1.clone()));
+            };
+            self.advance();
+            args.push((name, type_name.to_string()));
+            if matches!(self.current_token.0, Token::Comma) {
+                self.advance();
+            }
+        }
+        self.expect(Token::RightParen)?;
+        Ok(args)
     }
 
     fn parse_function(&mut self) -> Result<Stmt, CompileError> {
         self.expect_keyword(Keyword::Fn)?;
         let name = self.parse_identifier()?;
-        let _ = self.parse_function_declaration_arguments()?;
+        let args = self.parse_function_declaration_arguments_with_types()?;
         let body = self.parse_block()?;
-        Ok(Stmt::Function { name, body })
+
+        let mut return_expr = None;
+        if matches!(self.current_token.0, Token::Keyword(Keyword::Return)) {
+            self.advance();
+            return_expr = Some(self.parse_expression()?);
+            if matches!(self.current_token.0, Token::Semicolon) {
+                self.advance();
+            }
+        }
+        Ok(Stmt::Function { name, args, body, return_expr })
+    }
+
+    fn parse_function_declaration_arguments_with_types(&mut self) -> Result<Vec<(String, String)>, CompileError> {
+        self.expect(Token::LeftParen)?;
+        let mut args = Vec::new();
+        if matches!(self.current_token.0, Token::RightParen) {
+            self.expect(Token::RightParen)?;
+            return Ok(args);
+        }
+        while !matches!(self.current_token.0, Token::RightParen) {
+            let name = self.parse_identifier()?;
+            self.expect(Token::Colon)?;
+            let type_name = if let Token::Keyword(kw) = &self.current_token.0 {
+                match kw {
+                    Keyword::Int => "int",
+                    Keyword::Bool => "bool",
+                    _ => return Err(CompileError::new("Unknown type in fn arg", self.current_token.1.clone())),
+                }
+            } else {
+                return Err(CompileError::new("Expected type in fn arg", self.current_token.1.clone()));
+            };
+            self.advance();
+            args.push((name, type_name.to_string()));
+            if matches!(self.current_token.0, Token::Comma) {
+                self.advance();
+            }
+        }
+        self.expect(Token::RightParen)?;
+        Ok(args)
     }
 
     fn parse_block(&mut self) -> Result<Vec<Stmt>, CompileError> {
@@ -55,6 +155,14 @@ impl Parser {
                     format!("Unexpected block delimiter or EOF in statement context: {:?}", self.current_token.0),
                     self.current_token.1.clone(),
                 ))
+            }
+            Token::Keyword(Keyword::Return) => {
+                self.advance();
+                let expr = self.parse_expression()?;
+                if matches!(self.current_token.0, Token::Semicolon) {
+                    self.advance();
+                }
+                Ok(Stmt::Return(expr))
             }
             _ => {
                 if self.peek().0 == Token::Equals {
@@ -133,6 +241,9 @@ impl Parser {
             Token::Identifier(name) => {
                 let name = name.clone();
                 self.advance();
+                if matches!(self.current_token.0, Token::LeftParen) {
+                    return self.parse_call(name);
+                }
                 Expr::Variable(name)
             }
             Token::NumberLiteral(n) => {

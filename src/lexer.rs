@@ -93,7 +93,7 @@ impl<'a> Lexer<'a> {
             '{' => self.consume_simple(Token::LeftBrace),
             '}' => self.consume_simple(Token::RightBrace),
             ';' => self.consume_simple(Token::Semicolon),
-            _ if current.is_alphabetic() => self.consume_word(),
+            _ if current.is_alphabetic() || current == '_' => self.consume_word(),
             _ if current.is_digit(10) => self.consume_number(),
             _ => panic!("Unexpected character at {}:{}", self.current_pos.line, self.current_pos.column),
         };
@@ -113,13 +113,14 @@ impl<'a> Lexer<'a> {
 
     fn consume_word(&mut self) -> Token {
         let start = self.position;
-        while self.position < self.input.len() && self.current_char().is_alphanumeric() {
+        while self.position < self.input.len() && (self.current_char().is_alphanumeric() || self.current_char() == '_') {
             self.advance();
         }
 
         let word = &self.input[start..self.position];
         match word {
             "fn" => Token::Keyword(Keyword::Fn),
+            "extern" => Token::Keyword(Keyword::Extern),
             "var" => Token::Keyword(Keyword::Var),
             "int" => Token::Keyword(Keyword::Int),
             "bool" => Token::Keyword(Keyword::Bool),
