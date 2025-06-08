@@ -1,4 +1,4 @@
-use crate::common::{Position, Token, Keyword, Builtin};
+use crate::common::{Builtin, Keyword, Position, Token};
 
 pub struct Lexer<'a> {
     input: &'a str,
@@ -56,7 +56,7 @@ impl<'a> Lexer<'a> {
                 } else {
                     self.consume_simple(Token::Equals)
                 }
-            },
+            }
             '>' => {
                 if self.peek() == '=' {
                     self.advance();
@@ -65,7 +65,7 @@ impl<'a> Lexer<'a> {
                 } else {
                     self.consume_simple(Token::GreaterThan)
                 }
-            },
+            }
             '<' => {
                 if self.peek() == '=' {
                     self.advance();
@@ -74,7 +74,7 @@ impl<'a> Lexer<'a> {
                 } else {
                     self.consume_simple(Token::LessThan)
                 }
-            },
+            }
             '!' => {
                 if self.peek() == '=' {
                     self.advance();
@@ -95,7 +95,10 @@ impl<'a> Lexer<'a> {
             ';' => self.consume_simple(Token::Semicolon),
             _ if current.is_alphabetic() || current == '_' => self.consume_word(),
             _ if current.is_digit(10) => self.consume_number(),
-            _ => panic!("Unexpected character at {}:{}", self.current_pos.line, self.current_pos.column),
+            _ => panic!(
+                "Unexpected character at {}:{}",
+                self.current_pos.line, self.current_pos.column
+            ),
         };
 
         (token, self.start_pos)
@@ -106,14 +109,16 @@ impl<'a> Lexer<'a> {
         while self.position < self.input.len() && self.current_char().is_digit(10) {
             self.advance();
         }
-        
+
         let num_str = &self.input[start..self.position];
         Token::NumberLiteral(num_str.parse().unwrap())
     }
 
     fn consume_word(&mut self) -> Token {
         let start = self.position;
-        while self.position < self.input.len() && (self.current_char().is_alphanumeric() || self.current_char() == '_') {
+        while self.position < self.input.len()
+            && (self.current_char().is_alphanumeric() || self.current_char() == '_')
+        {
             self.advance();
         }
 
@@ -139,13 +144,13 @@ impl<'a> Lexer<'a> {
         // Skip the first quote
         self.advance();
         let start = self.position;
-        
+
         while self.position < self.input.len() && self.current_char() != '"' {
             self.advance();
         }
 
         let content = self.input[start..self.position].to_string();
-        
+
         // Skip the closing quote
         self.advance();
         Token::StringLiteral(content)

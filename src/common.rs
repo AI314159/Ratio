@@ -30,7 +30,7 @@ pub enum Keyword {
     While,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Type {
     Int,
     Bool,
@@ -72,41 +72,7 @@ pub enum Token {
     RightBrace,
     Semicolon,
 }
-impl Display for Token {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{:?}",
-            match self {
-                // TODO: Find a better way to do this
-                Token::Keyword(k) => format!("{:?}", k),
-                Token::Builtin(b) => format!("{:?}", b),
-                Token::LeftParen => "(".to_string(),
-                Token::RightParen => ")".to_string(),
-                Token::Colon => ":".to_string(),
-                Token::Comma => ",".to_string(),
-                Token::Equals => "=".to_string(),
-                Token::Plus => "+".to_string(),
-                Token::Minus => "-".to_string(),
-                Token::Asterisk => "*".to_string(),
-                Token::Slash => "/".to_string(),
-                Token::Equality => "==".to_string(),
-                Token::LessThan => "<".to_string(),
-                Token::LessThanOrEqual => "<=".to_string(),
-                Token::GreaterThan => ">".to_string(),
-                Token::GreaterThanOrEqual => ">=".to_string(),
-                Token::NotEqual => "!=".to_string(),
-                Token::StringLiteral(s) => format!("\"{}\"", s),
-                Token::NumberLiteral(n) => n.to_string(),
-                Token::Identifier(s) => s.clone(),
-                Token::EOF => "EOF".to_string(),
-                Token::LeftBrace => "{".to_string(),
-                Token::RightBrace => "}".to_string(),
-                Token::Semicolon => ";".to_string(),
-            }
-        )
-    }
-}
+
 #[derive(Debug)]
 pub struct Program {
     pub functions: Vec<Stmt>,
@@ -116,7 +82,7 @@ pub struct Program {
 #[derive(Debug, Clone)]
 pub struct ExternFunction {
     pub name: String,
-    pub args: Vec<(String, String)>, // (name, type)
+    pub args: Vec<(String, Type)>, // (name, type)
     pub return_type: String,
 }
 
@@ -124,7 +90,7 @@ pub struct ExternFunction {
 pub enum Stmt {
     Function {
         name: String,
-        args: Vec<(String, String)>,
+        args: Vec<(String, Type)>,
         body: Vec<Stmt>,
         return_expr: Option<Expr>,
     },
@@ -194,9 +160,7 @@ impl Display for CompileError {
         write!(
             f,
             "Error at {}:{}\n{}",
-            self.position.line,
-            self.position.column,
-            self.message,
+            self.position.line, self.position.column, self.message,
         )
     }
 }

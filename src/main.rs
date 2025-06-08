@@ -1,16 +1,16 @@
-mod lexer;
 mod common;
-mod parser;
 mod file_io;
+mod lexer;
 mod llvm_codegen;
+mod parser;
+mod type_system;
 
 use common::{Position, Token};
 use lexer::Lexer;
 
-use std::process;
 use clap::Parser;
 use inkwell::context::Context;
-
+use std::process;
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
@@ -19,7 +19,6 @@ struct Arguments {
 
     #[arg(short, long)]
     output: String,
-
 }
 
 fn main() {
@@ -52,7 +51,8 @@ fn main() {
 
     inkwell::targets::Target::initialize_all(&inkwell::targets::InitializationConfig::default());
     let target_triple = inkwell::targets::TargetMachine::get_default_triple();
-    let target = inkwell::targets::Target::from_triple(&target_triple).expect("Failed to get target");
+    let target =
+        inkwell::targets::Target::from_triple(&target_triple).expect("Failed to get target");
     let target_machine = target
         .create_target_machine(
             &target_triple,
@@ -68,7 +68,11 @@ fn main() {
 
     let obj_path = "/tmp/output.o";
     target_machine
-        .write_to_file(&module, inkwell::targets::FileType::Object, std::path::Path::new(obj_path))
+        .write_to_file(
+            &module,
+            inkwell::targets::FileType::Object,
+            std::path::Path::new(obj_path),
+        )
         .expect("Failed to write object file");
 
     let gcc_status = process::Command::new("gcc")

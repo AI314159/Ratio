@@ -1,7 +1,6 @@
 use std::fs::File;
 use std::io::Read;
 
-
 pub fn read_file(filepath: &std::path::PathBuf) -> std::io::Result<String> {
     std::fs::read_to_string(filepath)
 }
